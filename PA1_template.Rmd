@@ -1,25 +1,110 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "PA1_template.Rmd"
+author: "Bobi"
+date: "2024-12-21"
+output:
+  html_document: default
+  md_document: default
 ---
 
+```{r echo=TRUE}
+# Load necessary libraries
+library(dplyr)
 
-## Loading and preprocessing the data
+# Load the dataset
+data <- read.csv("C:/Users/Боби/Desktop/activity.csv")
 
+# Display the structure and summary of the dataset
+str(data)
+summary(data)
 
+# Calculate the total number of steps taken per day
+steps_per_day <- data %>%
+  group_by(date) %>%
+  summarize(total_steps = sum(steps, na.rm = TRUE))
 
-## What is mean total number of steps taken per day?
+# Display the first few rows of total steps per day
+head(steps_per_day)
 
+# Histogram of the total number of steps taken per day
+hist(steps_per_day$total_steps, 
+     main = "Histogram of Total Steps per Day", 
+     xlab = "Total Steps", 
+     col = "blue", 
+     breaks = 20)
 
+# Calculate the mean and median of total steps per day
+mean_steps <- mean(steps_per_day$total_steps)
+median_steps <- median(steps_per_day$total_steps)
 
-## What is the average daily activity pattern?
+# Display the results
+mean_steps
+median_steps
+  
+# Calculate the average steps per interval
+avg_steps_interval <- data %>%
+  group_by(interval) %>%
+  summarize(mean_steps = mean(steps, na.rm = TRUE))
 
+# Time series plot of average steps by interval
+plot(avg_steps_interval$interval, avg_steps_interval$mean_steps, 
+     type = "l", 
+     main = "Average Steps per 5-Minute Interval", 
+     xlab = "Interval", 
+     ylab = "Average Steps", 
+     col = "red")
 
+# Find the interval with the maximum average steps
+max_interval <- avg_steps_interval[which.max(avg_steps_interval$mean_steps), ]
+max_interval
 
-## Imputing missing values
+# Count total number of missing values
+total_na <- sum(is.na(data$steps))
+total_na
 
+# Replace NA with the mean of the corresponding 5-minute interval
+data_filled <- data
+data_filled$steps <- ifelse(is.na(data_filled$steps), 
+                            avg_steps_interval$mean_steps[match(data_filled$interval, avg_steps_interval$interval)], 
+                            data_filled$steps)
 
+# Recalculate total steps per day with filled data
+steps_per_day_filled <- data_filled %>%
+  group_by(date) %>%
+  summarize(total_steps = sum(steps))
 
-## Are there differences in activity patterns between weekdays and weekends?
+# Histogram of total steps after imputation
+hist(steps_per_day_filled$total_steps, 
+     main = "Histogram of Total Steps per Day (Imputed)", 
+     xlab = "Total Steps", 
+     col = "green", 
+     breaks = 20)
+  
+# Mean and Median after imputation
+mean_steps_filled <- mean(steps_per_day_filled$total_steps)
+median_steps_filled <- median(steps_per_day_filled$total_steps)
+
+# Display the results
+mean_steps_filled
+median_steps_filled
+
+# Add a new column for weekday/weekend
+data_filled <- data_filled %>%
+  mutate(day_type = ifelse(weekdays(as.Date(date)) %in% c("Saturday", "Sunday"), 
+                           "weekend", 
+                           "weekday"))
+  
+# Calculate average steps by interval and day type (weekday/weekend)
+avg_steps_day_type <- data_filled %>%
+  group_by(interval, day_type) %>%
+  summarize(mean_steps = mean(steps))
+
+# Panel plot using ggplot2
+library(ggplot2)
+ggplot(avg_steps_day_type, aes(x = interval, y = mean_steps, color = day_type)) +
+  geom_line() +
+  facet_wrap(~day_type, ncol = 1) +
+  labs(title = "Average Steps per Interval: Weekdays vs. Weekends",
+       x = "Interval",
+       y = "Average Steps") +
+  theme_minimal()
